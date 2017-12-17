@@ -1,0 +1,1 @@
+cros_secure console=ttyS2,115200n8 earlyprintk=ttyS2,115200n8 console=tty1 init=/sbin/init root=PARTUUID=8b95f8a7-14f7-41a3-b020-12c2a1c5f152/PARTNROFF=1 rootwait rw noinitrd 

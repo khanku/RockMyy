@@ -1,37 +1,17 @@
+#!/bin/bash -x
+
 export ARCH=arm
-export CROSS_COMPILE=arm-linux-gnueabihf-
+#export CROSS_COMPILE=armv7a-hardfloat-linux-gnueabi-
 
 export KERNEL_GIT_URL='git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
 
 export KERNEL_SERIES=v4.15
 export KERNEL_BRANCH=v4.15-rc3
-export LOCALVERSION=-Kernel-Maker-XV
+export LOCALVERSION=-c201
 export MALI_VERSION=r19p0-01rel0
 export MALI_BASE_URL=https://developer.arm.com/-/media/Files/downloads/mali-drivers/kernel/mali-midgard-gpu
 
-export GITHUB_REPO=Miouyouyou/RockMyy
-export GIT_BRANCH=GotNotScreenToTest
-
-export DTB_FILES="
-rk3288-evb-act8846.dtb
-rk3288-evb-rk808.dtb
-rk3288-fennec.dtb
-rk3288-firefly-beta.dtb
-rk3288-firefly-reload.dtb
-rk3288-firefly.dtb
-rk3288-tinker.dtb
-rk3288-miqi.dtb
-rk3288-popmetal.dtb
-rk3288-r89.dtb
-rk3288-rock2-square.dtb
-rk3288-veyron-brain.dtb
-rk3288-veyron-jaq.dtb
-rk3288-veyron-jerry.dtb
-rk3288-veyron-mickey.dtb
-rk3288-veyron-minnie.dtb
-rk3288-veyron-pinky.dtb
-rk3288-veyron-speedy.dtb
-"
+export DTB_FILES="rk3288-veyron-speedy.dtb"
 
 export PATCHES_DIR=patches
 export KERNEL_PATCHES_DIR=$PATCHES_DIR/kernel/$KERNEL_SERIES
@@ -198,22 +178,19 @@ if [ -z ${MAKE_CONFIG+x} ]; then
 fi
 
 make $MAKE_CONFIG
-make $DTB_FILES zImage modules -j5
-die_on_error "Compilation failed"
 
-if [ -z ${DONT_INSTALL_IN_TMP+x} ]; then
-	# Kernel compiled
-	# This will just copy the kernel files and libraries in /tmp
-	# This part is only useful if you're cross-compiling the kernel, of course
-	export INSTALL_MOD_PATH=/tmp/RockMyy-Build
-	export INSTALL_PATH=$INSTALL_MOD_PATH/boot
-	export INSTALL_HDR_PATH=$INSTALL_MOD_PATH/usr
-	mkdir -p $INSTALL_MOD_PATH $INSTALL_PATH $INSTALL_HDR_PATH
-	make modules_install &&
-	make install &&
-	make INSTALL_HDR_PATH=$INSTALL_HDR_PATH headers_install && # This command IGNORES predefined variables
-	cp arch/arm/boot/zImage $INSTALL_PATH &&
-	cp arch/arm/boot/dts/*.dtb $INSTALL_PATH
-fi
+set -e
+make -j1 modules
+make -j1 zImage
+make -j1 "$DTB_FILES"
 
-
+mkimage -D "-I dts -O dtb -p 2048" -f kernel.its vmlinux.uimg
+dd if=/dev/zero of=bootloader.bin bs=512 count=1
+vbutil_kernel --pack vmlinux.kpart \
+              --version 1 \
+              --vmlinuz vmlinux.uimg \
+              --arch arm \
+              --keyblock /usr/share/vboot/devkeys/kernel.keyblock \
+              --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk \
+              --config ../cmdline \
+              --bootloader bootloader.bin
