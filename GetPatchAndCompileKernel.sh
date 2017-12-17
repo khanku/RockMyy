@@ -3,26 +3,23 @@
 export ARCH=arm
 #export CROSS_COMPILE=armv7a-hardfloat-linux-gnueabi-
 
-export KERNEL_GIT_URL='git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git'
+export KERNEL_GIT_URL='https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git'
 
-export KERNEL_SERIES=v4.15
-export KERNEL_BRANCH=v4.15-rc3
+# 4.14.6
+export KERNEL_SERIES=v4.14
+export KERNEL_BRANCH=linux-4.14.y
 export LOCALVERSION=-c201
-export MALI_VERSION=r19p0-01rel0
-export MALI_BASE_URL=https://developer.arm.com/-/media/Files/downloads/mali-drivers/kernel/mali-midgard-gpu
 
 export DTB_FILES="rk3288-veyron-speedy.dtb"
 
 export PATCHES_DIR=patches
 export KERNEL_PATCHES_DIR=$PATCHES_DIR/kernel/$KERNEL_SERIES
 export KERNEL_PATCHES_DTS_DIR=$KERNEL_PATCHES_DIR/DTS
-export MALI_PATCHES_DIR=$PATCHES_DIR/Midgard/$MALI_VERSION
 export CONFIG_FILE_PATH=config/$KERNEL_SERIES/config-latest
 
 export BASE_FILES_URL=https://raw.githubusercontent.com/$GITHUB_REPO/$GIT_BRANCH
 export KERNEL_PATCHES_DIR_URL=$BASE_FILES_URL/$KERNEL_PATCHES_DIR
 export KERNEL_DTS_PATCHES_DIR_URL=$BASE_FILES_URL/$KERNEL_PATCHES_DTS_DIR
-export MALI_PATCHES_DIR_URL=$BASE_FILES_URL/$MALI_PATCHES_DIR
 export CONFIG_FILE_URL=$BASE_FILES_URL/config/$KERNEL_SERIES/config-latest
 
 export KERNEL_PATCHES="
@@ -59,13 +56,6 @@ export KERNEL_DTS_PATCHES="
 0025-ARM-DTSI-rk3288-firefly-Enable-the-Video-encoding-MM.patch
 0026-ARM-DTSI-rk3288-veyron-Enable-the-Video-encoding-MMU.patch
 0027-ARM-DTSI-rk3288-fix-errors-in-IOMMU-interrupts-prope.patch
-"
-
-export MALI_PATCHES="
-0001-Mali-midgard-r19p0-fixes-for-4.13-kernels.patch
-0004-Don-t-be-TOO-severe-when-looking-for-the-IRQ-names.patch
-0005-Added-the-new-compatible-list-mainly-used-by-Rockchi.patch
-0006-gpu-arm-Midgard-setup_timer-timer_setup.patch
 "
 
 # -- Helper functions
@@ -129,32 +119,6 @@ if [ ! -e "PATCHED" ]; then
   git clean -fdx &&
   # Rewind modified files to their initial state.
   git checkout -- .
-
-  # Download, prepare and copy the Mali Kernel-Space drivers. 
-  # Some TGZ are AWFULLY packaged with everything having 0777 rights.
-  
-  wget "$MALI_BASE_URL/TX011-SW-99002-$MALI_VERSION.tgz" &&
-  tar zxvf TX011-SW-99002-$MALI_VERSION.tgz &&
-  cd TX011-SW-99002-$MALI_VERSION &&
-  find . -type 'f' -exec chmod 0644 {} ';' && # Every file   should have -rw-r--r-- rights
-  find . -type 'd' -exec chmod 0755 {} ';' && # Every folder should have drwxr-xr-x rights
-  find . -name 'sconscript' -exec rm {} ';' && # Remove sconscript files. Useless.
-  cd driver/product/kernel &&
-  cp -r drivers/gpu/arm  $SRC_DIR/drivers/gpu/ && # Copy the Midgard code
-  cd $SRC_DIR &&
-  rm -r TX011-SW-99002-$MALI_VERSION TX011-SW-99002-$MALI_VERSION.tgz
-  
-  # Download and apply the various kernel and Mali kernel-space driver patches
-  if [ ! -d "../patches" ]; then
-    download_and_apply_patches $KERNEL_PATCHES_DIR_URL $KERNEL_PATCHES
-    download_and_apply_patches $KERNEL_DTS_PATCHES_DIR_URL $KERNEL_DTS_PATCHES
-    download_and_apply_patches $MALI_PATCHES_DIR_URL $MALI_PATCHES
-  else
-    copy_and_apply_patches ../$KERNEL_PATCHES_DIR $KERNEL_PATCHES
-    copy_and_apply_patches ../$KERNEL_PATCHES_DTS_DIR $KERNEL_DTS_PATCHES
-    copy_and_apply_patches ../$MALI_PATCHES_DIR $MALI_PATCHES
-  fi
-
 
   # Cleanup, get the configuration file and mark the tree as patched
   echo "RockMyy" > PATCHED &&
